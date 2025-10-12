@@ -5,7 +5,7 @@ on:
     inputs:
       java-version:
         required: false
-        default: '21'
+        default: '25'
         type: string
     secrets:
       OSSRH_USERNAME:
