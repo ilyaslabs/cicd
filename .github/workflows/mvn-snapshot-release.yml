@@ -1,0 +1,77 @@
+name: Deploy Snapshot to Maven Central
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        required: false
+        default: '25'
+        type: string
+    secrets:
+      OSSRH_USERNAME:
+        required: true
+      OSSRH_PASSWORD:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Extract branch name
+        run: echo "BRANCH_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Read current version from pom.xml
+        id: version
+        run: |
+          RAW_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_ENV
+
+      - name: Check if version ends with -SNAPSHOT
+        run: |
+          if [[ "${RAW_VERSION}" != *-SNAPSHOT ]]; then
+            echo "Version does not end with -SNAPSHOT. Skipping deployment."
+            exit 0
+          fi
+
+      - name: build version
+        run: |
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
+          BASE_VERSION="${RAW_VERSION%-SNAPSHOT}"
+          NEW_VERSION="${BASE_VERSION}-${SANITIZED_BRANCH}-SNAPSHOT"
+          echo "Setting version to: $NEW_VERSION"
+          mvn versions:set -DnewVersion="$NEW_VERSION" -B
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: ${{ inputs.java-version }}
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Verify GPG setup
+        run: |
+          echo "Verifying GPG configuration..."
+          gpg --list-secret-keys --keyid-format LONG
+          echo "GPG version:"
+          gpg --version | head -1
+
+      - name: Deploy SNAPSHOT
+        run: mvn clean deploy -B -U -DskipTests
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
