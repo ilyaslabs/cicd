@@ -61,9 +61,6 @@ jobs:
                 </repositories>
               </profile>
             </profiles>
-            <activeProfiles>
-              <activeProfile>snapshots</activeProfile>
-            </activeProfiles>
           </settings>
           EOF
 
