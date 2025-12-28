@@ -34,18 +34,10 @@ jobs:
           RAW_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_ENV
 
-      - name: Check if version ends with -SNAPSHOT
-        run: |
-          if [[ "${RAW_VERSION}" != *-SNAPSHOT ]]; then
-            echo "Version does not end with -SNAPSHOT. Skipping deployment."
-            exit 0
-          fi
-
-      - name: build version
+      - name: Build snapshot version from branch name
         run: |
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
-          BASE_VERSION="${RAW_VERSION%-SNAPSHOT}"
-          NEW_VERSION="${BASE_VERSION}-${SANITIZED_BRANCH}-SNAPSHOT"
+          NEW_VERSION="${SANITIZED_BRANCH}-SNAPSHOT"
           echo "Setting version to: $NEW_VERSION"
           mvn versions:set -DnewVersion="$NEW_VERSION" -B
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
@@ -58,11 +50,13 @@ jobs:
           server-id: central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Verify GPG setup
         run: |
           echo "Verifying GPG configuration..."
