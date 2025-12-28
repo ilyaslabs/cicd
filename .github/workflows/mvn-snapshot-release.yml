@@ -39,8 +39,6 @@ jobs:
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
           NEW_VERSION="${SANITIZED_BRANCH}-SNAPSHOT"
           echo "Setting version to: $NEW_VERSION"
-          mvn versions:set -DnewVersion="$NEW_VERSION" -B
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -65,7 +63,7 @@ jobs:
           gpg --version | head -1
 
       - name: Deploy SNAPSHOT
-        run: mvn clean deploy -B -U -DskipTests
+        run: mvn clean deploy -B -U -DskipTests -Drevision=${NEW_VERSION}
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
