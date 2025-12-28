@@ -43,6 +43,30 @@ jobs:
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
 
+      - name: setup Maven settings.xml for GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <profiles>
+              <profile>
+                <id>snapshots</id>
+                <repositories>
+                  <repository>
+                    <id>central-portal-snapshots</id>
+                    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+                    <snapshots><enabled>true</enabled></snapshots>
+                    <releases><enabled>false</enabled></releases>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+            <activeProfiles>
+              <activeProfile>snapshots</activeProfile>
+            </activeProfiles>
+          </settings>
+          EOF
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
