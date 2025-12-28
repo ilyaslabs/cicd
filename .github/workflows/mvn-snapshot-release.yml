@@ -51,6 +51,9 @@ jobs:
             <profiles>
               <profile>
                 <id>central</id>
+                <activation>
+                      <activeByDefault>true</activeByDefault>
+                  </activation>
                 <repositories>
                   <repository>
                     <id>central-portal-snapshots</id>
@@ -61,6 +64,13 @@ jobs:
                 </repositories>
               </profile>
             </profiles>
+          <servers>
+            <server>
+              <id>central</id>
+              <username>${{ secrets.OSSRH_USERNAME }}</username>
+              <password>${{ secrets.OSSRH_PASSWORD }}</password>
+            </server>
+          </servers>
           </settings>
           EOF
 
