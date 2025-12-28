@@ -28,16 +28,10 @@ jobs:
       - name: Extract branch name
         run: echo "BRANCH_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
-      - name: Read current version from pom.xml
-        id: version
-        run: |
-          RAW_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_ENV
-
       - name: Build snapshot version from branch name
         run: |
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
-          NEW_VERSION="${SANITIZED_BRANCH}-SNAPSHOT"
+          VERSION="${SANITIZED_BRANCH}-SNAPSHOT"
           echo "Setting version to: $NEW_VERSION"
 
       - name: Set up Java
@@ -63,7 +57,7 @@ jobs:
           gpg --version | head -1
 
       - name: Deploy SNAPSHOT
-        run: mvn clean deploy -B -U -DskipTests -Drevision=${NEW_VERSION}
+        run: mvn clean deploy -B -U -DskipTests -Drevision=${VERSION}
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
