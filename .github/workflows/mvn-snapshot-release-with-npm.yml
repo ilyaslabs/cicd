@@ -1,0 +1,101 @@
+name: Deploy Snapshot to Maven Central
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        required: false
+        default: '25'
+        type: string
+      node-version:
+        required: false
+        default: '22'
+        type: string
+    secrets:
+      OSSRH_USERNAME:
+        required: true
+      OSSRH_PASSWORD:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Extract branch name
+        run: echo "BRANCH_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Build snapshot version from branch name
+        run: |
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
+          echo "VERSION=${SANITIZED_BRANCH}-SNAPSHOT" >> $GITHUB_ENV
+          echo "Setting version to: $VERSION"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: ${{ inputs.java-version }}
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+
+      - name: setup Maven settings.xml for GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <profiles>
+              <profile>
+                <id>central</id>
+                <activation>
+                      <activeByDefault>true</activeByDefault>
+                  </activation>
+                <repositories>
+                  <repository>
+                    <id>central-portal-snapshots</id>
+                    <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+                    <snapshots><enabled>true</enabled></snapshots>
+                    <releases><enabled>false</enabled></releases>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+          <servers>
+            <server>
+              <id>central</id>
+              <username>${{ secrets.OSSRH_USERNAME }}</username>
+              <password>${{ secrets.OSSRH_PASSWORD }}</password>
+            </server>
+          </servers>
+          </settings>
+          EOF
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Verify GPG setup
+        run: |
+          echo "Verifying GPG configuration..."
+          gpg --list-secret-keys --keyid-format LONG
+          echo "GPG version:"
+          gpg --version | head -1
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Deploy SNAPSHOT
+        run: mvn clean deploy -B -U -Drevision=${VERSION}
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
