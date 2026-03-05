@@ -51,7 +51,7 @@ jobs:
           echo "GPG version:"
           gpg --version | head -1
       - name: Deploy to Maven Central
-        run: mvn clean deploy -B -U -DskipTests -Drevision=${VERSION}
+        run: mvn clean deploy -B -Drevision=${VERSION} -DskipTests
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
