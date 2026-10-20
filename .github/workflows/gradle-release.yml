@@ -1,0 +1,59 @@
+name: Release to Maven Central (Gradle)
+
+# Expects the caller to apply com.vanniktech.maven.publish, which reads the
+# mavenCentral* and signing.gnupg.keyName properties set below.
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        required: false
+        default: '25'
+        type: string
+    secrets:
+      OSSRH_USERNAME:
+        required: true
+      OSSRH_PASSWORD:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
+
+      - name: Extract version from tag
+        run: |
+          TAG="${{ github.event.release.tag_name || github.ref_name }}"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: ${{ inputs.java-version }}
+
+      - name: Import GPG key
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
+        run: ./gradlew build --no-daemon -Pversion="${VERSION}"
+
+      - name: Deploy to Maven Central
+        run: ./gradlew publishAndReleaseToMavenCentral --no-daemon --no-configuration-cache -Pversion="${VERSION}" -Psigning.gnupg.keyName="${{ steps.gpg.outputs.keyid }}"
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
