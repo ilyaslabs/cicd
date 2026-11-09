@@ -7,6 +7,11 @@ on:
         required: false
         default: '25'
         type: string
+      skip-tests:
+        description: Publish without running the tests (when pull request checks already run them)
+        required: false
+        default: false
+        type: boolean
     secrets:
       OSSRH_USERNAME:
         required: true
@@ -88,7 +93,7 @@ jobs:
           gpg --version | head -1
 
       - name: Deploy SNAPSHOT
-        run: mvn clean deploy -B -U -Drevision=${VERSION}
+        run: mvn clean deploy -B -U -Drevision=${VERSION} ${{ inputs.skip-tests && '-DskipTests' || '' }}
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
